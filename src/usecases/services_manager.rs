@@ -3,6 +3,7 @@ use crate::domain::service_repository::ServiceRepository;
 use crate::infrastructure::systemd_service_adapter::ConnectionType;
 use std::error::Error;
 use std::collections::HashSet;
+use std::env;
 
 pub struct ServicesManager {
     repository: Box<dyn ServiceRepository>,
@@ -66,7 +67,22 @@ impl ServicesManager {
         let mut seen = HashSet::new();
         all.retain(|s| seen.insert(s.name().to_string()));
 
-        all.sort_by_key(|s| s.name().to_lowercase());
+        // Get the user's home directory to construct the user systemd config path
+        let user_config_path = env::var("HOME")
+            .map(|home| format!("{}/.config/systemd/user", home))
+            .unwrap_or_else(|_| String::from("/.config/systemd/user"));
+
+        // Sort with custom logic: prioritize services in user config directory, then by name
+        all.sort_by(|a, b| {
+            let a_is_user_config = a.state().path().starts_with(&user_config_path);
+            let b_is_user_config = b.state().path().starts_with(&user_config_path);
+
+            match (a_is_user_config, b_is_user_config) {
+                (true, false) => std::cmp::Ordering::Less,    // a comes first
+                (false, true) => std::cmp::Ordering::Greater, // b comes first
+                _ => a.name().to_lowercase().cmp(&b.name().to_lowercase()), // both same priority, sort by name
+            }
+        });
 
         Ok(all)
     }

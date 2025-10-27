@@ -4,15 +4,17 @@ pub struct ServiceState {
     active: String,
     sub: String,
     file: String,
+    path: String,
 }
 
 impl ServiceState {
-    pub fn new(load: String, active: String, sub: String, file: String) -> Self {
+    pub fn new(load: String, active: String, sub: String, file: String, path: String) -> Self {
         ServiceState {
             load,
             active,
             sub,
             file,
+            path,
         }
     }
 
@@ -30,5 +32,9 @@ impl ServiceState {
 
     pub fn file(&self) -> &str {
         &self.file
+    }
+
+    pub fn path(&self) -> &str {
+        &self.path
     }
 }

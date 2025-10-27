@@ -46,6 +46,7 @@ fn generate_rows(services: &[Service]) -> Vec<Row<'static>> {
                 Cell::from(service.state().file().to_string()).style(normal_style),
                 Cell::from(service.state().load().to_string()).style(normal_style),
                 Cell::from(service.description().to_string()).style(normal_style),
+                Cell::from(service.state().path().to_string()).style(normal_style),
             ])
         })
         .collect()
@@ -113,7 +114,7 @@ impl TableServices {
                 (svcs, rows)
             }
             Err(_) => {
-                let error_row = Row::new(vec!["Error loading services", "", "", "", ""]);
+                let error_row = Row::new(vec!["Error loading services", "", "", "", "", ""]);
                 (vec![], vec![error_row])
             }
         };
@@ -127,11 +128,12 @@ impl TableServices {
                 Constraint::Length(20),
                 Constraint::Length(10),
                 Constraint::Length(10),
+                Constraint::Percentage(20),
                 Constraint::Min(0),
             ],
         )
         .header(
-            Row::new(["Name", "Active", "State", "Load", "Description"]).style(
+            Row::new(["Name", "Active", "State", "Load", "Description", "Path"]).style(
                 Style::default()
                     .fg(Color::White)
                     .add_modifier(Modifier::BOLD),

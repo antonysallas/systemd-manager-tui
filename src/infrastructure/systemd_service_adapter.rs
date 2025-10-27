@@ -54,6 +54,22 @@ impl SystemdServiceAdapter {
         )?;
         Ok(proxy)
     }
+
+    fn get_unit_path(&self, object_path: &OwnedObjectPath) -> String {
+        let unit_proxy = match Proxy::new(
+            &self.connection,
+            "org.freedesktop.systemd1",
+            object_path.as_str(),
+            "org.freedesktop.systemd1.Unit",
+        ) {
+            Ok(proxy) => proxy,
+            Err(_) => return String::new(),
+        };
+
+        unit_proxy
+            .get_property::<String>("FragmentPath")
+            .unwrap_or_default()
+    }
 }
 
 impl ServiceRepository for SystemdServiceAdapter {
@@ -89,7 +105,7 @@ impl ServiceRepository for SystemdServiceAdapter {
                     active_state,
                     sub_state,
                     _followed,
-                    _object_path,
+                    object_path,
                     _job_id,
                     _job_type,
                     _job_object,
@@ -98,7 +114,9 @@ impl ServiceRepository for SystemdServiceAdapter {
                         .call("GetUnitFileState", &name)
                         .unwrap_or_else(|_| "unknown".into());
 
-                    let service_state = ServiceState::new(load_state, active_state, sub_state, state);
+                    let path = self.get_unit_path(&object_path);
+
+                    let service_state = ServiceState::new(load_state, active_state, sub_state, state, path);
                     Service::new(name, description, service_state)
                 },
             )
@@ -127,8 +145,8 @@ impl ServiceRepository for SystemdServiceAdapter {
                     name,
                     state,
                 )| {
-                    let service_state = ServiceState::new(String::new(), "inactive".to_string(), String::new(), state );
                     let short_name = name.rsplit('/').next().unwrap_or(&name);
+                    let service_state = ServiceState::new(String::new(), "inactive".to_string(), String::new(), state, name.clone());
                     Service::new(short_name.to_string(), String::new(), service_state)
                 },
             )
@@ -193,9 +211,10 @@ impl ServiceRepository for SystemdServiceAdapter {
         let state: String = proxy
                         .call("GetUnitFileState", &name)
                         .unwrap_or_else(|_| "unknown".into());
-        
+
         if let Some(unit) = units.first() {
-            let service_state = ServiceState::new(unit.2.clone(), unit.3.clone(), unit.4.clone(), state );
+            let path = self.get_unit_path(&unit.6);
+            let service_state = ServiceState::new(unit.2.clone(), unit.3.clone(), unit.4.clone(), state, path);
             let service = Service::new(unit.0.clone(), unit.1.clone(), service_state);
             Ok(service)
         }else {
